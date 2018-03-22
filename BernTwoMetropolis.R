@@ -17,9 +17,9 @@ targetRelProb = function(theta){
     if(all(theta>=0) & all(theta<=1.0)){
         targetRelProbVal = likelihood(theta) * prior(theta)
         }else{
-        targetRelProb = 0.0
+          targetRelProbVal = 0.0
         }
-    return(targetRelProb)
+    return(targetRelProbVal)
     }
 
 trajLength = ceiling(1000 / .9)
@@ -31,3 +31,38 @@ nrejected= 0
 
 set.seed(47405)
 nDim = 2; sd1 = 0.2; sd2 = 0.2;
+covarMat = matrix(c(sd1^2,0,0,sd2^2), nrow=nDim, ncol=nDim)
+for(stepIdx in 1:(trajLength-1)){
+  currentPosition = trajectory[stepIdx,]
+  proposedJump = mvrnorm(n=1, mu=rep(0,nDim), Sigma=covarMat)
+  probAccept = min(1, targetRelProb(currentPosition + proposedJump)
+                   /targetRelProb(currentPosition))
+  if(runif(1) < probAccept){
+    trajectory[stepIdx+1, ] = currentPosition + proposedJump
+    if(stepIdx > burnIn){nAccepted = nAccepted + 1}
+    }else{
+    trajectory[stepIdx+1, ] = currentPosition
+    if(stepIdx > burnIn){nrejected = nrejected + 1}
+    }
+}
+
+acceptedTraj = trajectory[(burnIn+1):dim(trajectory)[1], ]
+meanTraj = apply(acceptedTraj, 2, mean)
+sdTraj = apply(acceptedTraj, 2, sd)
+
+par( pty="s" ) # makes plots in square axes.
+plot( acceptedTraj , type = "o" , xlim = c(0,1) , xlab = bquote(theta[1]) ,
+      ylim = c(0,1) , ylab = bquote(theta[2]) , col="skyblue" )
+# Display means and rejected/accepted ratio in plot.
+if ( meanTraj[1] > .5 ) { xpos = 0.0 ; xadj = 0.0
+} else { xpos = 1.0 ; xadj = 1.0 }
+if ( meanTraj[2] > .5 ) { ypos = 0.0 ; yadj = 0.0
+} else { ypos = 1.0 ; yadj = 1.0 }
+text( xpos , ypos ,	bquote(
+  "M=" * .(signif(meanTraj[1],3)) * "," * .(signif(meanTraj[2],3))
+  * "; " * N[pro] * "=" * .(dim(acceptedTraj)[1])
+  * ", " * frac(N[acc],N[pro]) * "=" 
+  * .(signif(nAccepted/dim(acceptedTraj)[1],3))
+) , adj=c(xadj,yadj) , cex=1.5  )
+
+
